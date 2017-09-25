@@ -1,10 +1,21 @@
-﻿#The challenge here is to get the File size in KB,MB or GB
-#Each example will be an improvement from the other (Well at least it should be)
+<#
+
+Author: I. Strachan
+Version: 1.0
+Version History:
+
+Purpose: Demo PowerShell Classes FileSize
+
+#>
+[CmdletBinding()]
+param(
+    $FilePath = 'C:\scripts\psdaysuk\files'
+)
 
 #region Example 1 Get File Size the Ops way
 
-#This will gib=ve me the list in Bytes, rather have it in a format
-Get-ChildItem C:\scripts\psdaysuk\files -Recurse -File |
+#This will give me the list in Bytes, rather have it in a format
+Get-ChildItem $FilePath -Recurse -File |
 Select-object BaseName,FullName,Length |
 Format-List
 #endregion
@@ -12,7 +23,7 @@ Format-List
 #region Example 2 Get File Size in Kb
 
 #Next best option is to format your select. This will give me the size in KB
-Get-ChildItem C:\scripts\psdaysuk\files -Recurse -File |
+Get-ChildItem $FilePath -Recurse -File |
 Select-object BaseName,FullName,
     @{Name ='SizeinKB'; Expression ={ $('{0:N2} {1}' -f ($_.Length /1kb), 'kB')}} |
 Format-List
@@ -21,27 +32,27 @@ Format-List
 #region Example 3 Get File Size in KB,MB and GB
 
 #Why not just format thema all? This will give me the size in KB,MB and GB
-Get-ChildItem C:\scripts\psdaysuk\files -Recurse -File |
+Get-ChildItem $FilePath -Recurse -File |
 Select-object BaseName,FullName,
-    @{Name ='SizeinKB'; Expression ={ $('{0:N2} {1}' -f ($_.Length /1kB), 'kB')}}, 
-    @{Name ='SizeinMB'; Expression ={ $('{0:N2} {1}' -f ($_.Length /1MB), 'MB')}}, 
-    @{Name ='SizeinGB'; Expression ={ $('{0:N2} {1}' -f ($_.Length /1GB), 'GB')}}    |
+    @{Name = 'SizeinKB'; Expression ={ $('{0:N2} {1}' -f ($_.Length /1kB), 'kB')}}, 
+    @{Name = 'SizeinMB'; Expression ={ $('{0:N2} {1}' -f ($_.Length /1MB), 'MB')}}, 
+    @{Name = 'SizeinGB'; Expression ={ $('{0:N2} {1}' -f ($_.Length /1GB), 'GB')}}    |
 Format-List
 
 #This gives you a weird list
 #endregion
 
 #region Example 4 Use Add-Member. Get File Size in different formats using a script method
-$Files = Get-ChildItem C:\scripts\psdaysuk\files -Recurse -File |
+$Files = Get-ChildItem $FilePath -Recurse -File |
 ForEach-Object{
     [PSCustomObject]@{
-        BaseName = $_.BaseName
-        FullName = $_.FullName
+        BaseName  = $_.BaseName
+        FullName  = $_.FullName
         SizeBytes = $_.Length
     } | 
-    Add-Member ScriptMethod SizeMB {'{0:N2} {1}' -f ($This.Size/1mb), 'MB' } -PassThru |
-    Add-Member ScriptMethod SizeKB {'{0:N2} {1}' -f ($This.Size/1kb), 'KB' } -PassThru |
-    Add-Member ScriptMethod SizeGB {'{0:N2} {1}' -f ($This.Size/1gb), 'GB' } -PassThru
+    Add-Member ScriptMethod SizeMB {'{0:N2} {1}' -f ($This.SizeBytes/1mb), 'MB' } -PassThru |
+    Add-Member ScriptMethod SizeKB {'{0:N2} {1}' -f ($This.SizeBytes/1kb), 'KB' } -PassThru |
+    Add-Member ScriptMethod SizeGB {'{0:N2} {1}' -f ($This.SizeBytes/1gb), 'GB' } -PassThru
 }
 
 #Get Files in KB
@@ -74,7 +85,7 @@ filter Get-FileSize {
     )
 }
 
-Get-ChildItem C:\scripts\psdaysuk\files -Recurse -File |
+Get-ChildItem $FilePath -Recurse -File |
 ForEach-Object{
     [PSCustomObject]@{
         BaseName  = $_.BaseName
@@ -82,17 +93,18 @@ ForEach-Object{
         SizeBytes = $_.Length
         SizeFM    = $($_.Length | Get-FileSize)
     } 
-}
+} |
+Format-List
 #endregion
 
 #region Example 5b Use a script method to figure out the correct format size
 
 #Before Classes this would have been to best way to go
-$Files = Get-ChildItem C:\scripts\psdaysuk\files -Recurse -File |
+$Files = Get-ChildItem $FilePath -Recurse -File |
 ForEach-Object{
     [PSCustomObject]@{
-        BaseName = $_.BaseName
-        FullName = $_.FullName
+        BaseName  = $_.BaseName
+        FullName  = $_.FullName
         SizeBytes = $_.Length
     } | 
     Add-Member ScriptMethod SizeFormatted {
@@ -109,7 +121,8 @@ ForEach-Object{
 }
 
 $Files | 
-Select-Object FullName, SizeBytes, @{Name ='Formatted'; Expression ={ $_.SizeFormatted()}}
+Select-Object FullName, SizeBytes, @{Name ='Formatted'; Expression ={ $_.SizeFormatted()}} |
+Format-List
 #endregion
 
 #region Example 6 Let's make a Class of this
@@ -211,7 +224,7 @@ Class FileSize{
 #endregion
 
 #region Instantiate a variable with [FileSize] objects
-$classFiles = Get-ChildItem C:\scripts\psdaysuk\files -Recurse -File |
+$classFiles = Get-ChildItem $FilePath -Recurse -File |
 ForEach-Object{
     [FileSize]::new($_.FullName)
 }
@@ -239,7 +252,9 @@ $classFiles.InvalidFile
 [FileSize]::SizeFormatted('C:\scripts\psdaysuk\files\WhatsAppSetup.exe')
 #endregion
 
-#region create an array with some bad entries,fix and verify
+#region create an array with some bad entries,fix and verify.
+
+#The list here is specific for Demo purposes.
 $arrFiles = @(
     'C:\scripts\psdaysuk\files\Get-SIDHistoryUserAndGroups.ps1'
     'C:\scripts\psdaysuk\files\Get-UserPrimarySMTPAddress.ps1'
@@ -279,4 +294,5 @@ $results | Format-List
 #Verify no more InvalidFile
 $results.InvalidFile
 #endregion
+
 #endregion 
